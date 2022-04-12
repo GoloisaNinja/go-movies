@@ -24,6 +24,15 @@ type Director struct {
 
 var movies []Movie
 
+func movieIdExists(id string) bool {
+	for _, movie := range movies {
+		if movie.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
 func getMovies(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(movies)
@@ -32,18 +41,24 @@ func getMovies(w http.ResponseWriter, r *http.Request) {
 func getMovie(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	params := mux.Vars(r)
+	if !movieIdExists(params["id"]) {
+		http.Error(w, "404 movie does not exist...", http.StatusNotFound)
+	}
 	for _, movie := range movies {
 		if movie.ID == params["id"] {
 			json.NewEncoder(w).Encode(movie)
 			return
 		}
 	}
-	http.Error(w, "404 movie not found...", http.StatusNotFound)
 }
 
 func deleteMovie(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	params := mux.Vars(r)
+	if !movieIdExists(params["id"]) {
+		http.Error(w, "404 movie does not exist...", http.StatusNotFound)
+		return
+	}
 	for i, movie := range movies {
 		if movie.ID == params["id"] {
 			movies = append(movies[:i], movies[i+1:]...)
@@ -86,16 +101,16 @@ func main() {
 			ID:       "1",
 			Isbn:     "222111",
 			Title:    "Movie One",
-			Director: &Director{Firstname: "John", Lastname: "Doe"}
-		}
+			Director: &Director{Firstname: "John", Lastname: "Doe"},
+		},
 	)
 	movies = append(
 		movies, Movie{
 			ID:       "2",
 			Isbn:     "111222",
 			Title:    "Movie Two",
-			Director: &Director{Firstname: "LouLou", Lastname: "Collins"}
-		}
+			Director: &Director{Firstname: "LouLou", Lastname: "Collins"},
+		},
 	)
 	r.HandleFunc("/movies", getMovies).Methods("GET")
 	r.HandleFunc("/movies/{id}", getMovie).Methods("GET")
