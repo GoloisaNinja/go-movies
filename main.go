@@ -7,6 +7,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"sort"
 	"strconv"
 )
 
@@ -24,6 +25,15 @@ type Director struct {
 
 var movies []Movie
 
+func sortMovies() []Movie {
+	sort.Slice(
+		movies, func(i, j int) bool {
+			return movies[i].ID < movies[j].ID
+		},
+	)
+	return movies
+}
+
 func movieIdExists(id string) bool {
 	for _, movie := range movies {
 		if movie.ID == id {
@@ -35,7 +45,7 @@ func movieIdExists(id string) bool {
 
 func getMovies(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(movies)
+	json.NewEncoder(w).Encode(sortMovies())
 }
 
 func getMovie(w http.ResponseWriter, r *http.Request) {
@@ -80,14 +90,19 @@ func createMovie(w http.ResponseWriter, r *http.Request) {
 func updateMovie(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	params := mux.Vars(r)
-	var movie Movie
-	_ = json.NewDecoder(r.Body).Decode(&movie)
-	movie.ID = params["id"]
+	if !movieIdExists(params["id"]) {
+		http.Error(w, "404 no movie found...", http.StatusNotFound)
+		return
+	}
+	var updatedMovie Movie
+	_ = json.NewDecoder(r.Body).Decode(&updatedMovie)
+	updatedMovie.ID = params["id"]
 
 	for i, movie := range movies {
 		if movie.ID == params["id"] {
 			movies = append(movies[:i], movies[i+1:]...)
-			json.NewEncoder(w).Encode(movie)
+			movies = append(movies, updatedMovie)
+			json.NewEncoder(w).Encode(updatedMovie)
 			return
 		}
 	}
